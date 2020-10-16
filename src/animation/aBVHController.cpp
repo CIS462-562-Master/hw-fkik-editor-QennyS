@@ -52,11 +52,26 @@ void BVHController::setActor(AActor* actor)
 
 void BVHController::update(double time, bool updateRootXZTranslation)
 {
+    ASkeleton* skeleton = mActor->getSkeleton();
 	// TODO: Given the current value of time, 
 	// 1. set the local transforms at each Skeleton joint using the cached spline data in member variables mRootMotion and mMotion 
 	// 2. update the joint transforms of the full skeleton in order to compute the global transforms at each joint
 	// Hint: the root can both rotate and translate (i.e. has 6 DOFs) while all the other joints just rotate 
+    if (!updateRootXZTranslation) {
+        vec3 a = mRootMotion.getValue(time);
+        a[0] = 0.f;
+        a[2] = 0.f;
+        skeleton->getRootNode()->setLocalTranslation(a);
+    }
 
+    // TODO: Update transforms at each Skeleton joint given spline motion data in mRootMotion and mMotion for value of time. 
+    skeleton->getRootNode()->setLocalTranslation(mRootMotion.getValue(time));
+
+    for (int i = 0; i < skeleton->getNumJoints(); i++) {
+        mat3 rot = mMotion[i].getCachedValue(time).ToRotation();
+        skeleton->getJointByID(i)->setLocalRotation(rot);
+    }
+    skeleton->update();
 }
 
 bool BVHController::load(const std::string& filename)
@@ -201,7 +216,7 @@ bool BVHController::loadMotion(std::ifstream& inFile)
 	ASkeleton* skeleton = mActor->getSkeleton();
     // Init rotation curves
 	for (unsigned int i = 0; i < skeleton->getNumJoints(); i++)
-    {
+    {   
         ASplineQuat q;
         q.setFramerate(mFps);
         q.setInterpolationType(ASplineQuat::LINEAR);
